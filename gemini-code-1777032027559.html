@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SYNAPTIC | Neocultural Couture</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap"
+        rel="stylesheet">
+    <style>
+        @font-face {
+            font-family: 'Ceraso';
+            src: url('./ceraso.otf') format('opentype');
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        :root {
+            --green-brand: #a8ff3e;
+            --cream: #ddd5c0;
+            --white: #ffffff;
+            --black: #000000;
+            --border-color: rgba(255, 255, 255, 0.12);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            background-color: var(--black);
+            font-family: 'Space Mono', 'Courier New', monospace;
+            color: var(--white);
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* Layer 1: Background Video */
+        .bg-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .bg-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scale(1);
+        }
+
+        /* Subtle darkening vignette on left/bottom for text legibility */
+        .vignette {
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            background:
+                linear-gradient(to right, rgba(0, 0, 0, 0.55) 0%, transparent 60%),
+                linear-gradient(to top, rgba(0, 0, 0, 0.6) 0%, transparent 55%);
+            pointer-events: none;
+        }
+
+        /* Layer 3: Three.js Canvas */
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 3;
+            pointer-events: none;
+        }
+
+        /* Layer 4: Tech Frame */
+        .tech-frame {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            bottom: 20px;
+            border: 1px solid var(--border-color);
+            z-index: 4;
+            pointer-events: none;
+            clip-path: polygon(0 36px, 36px 0,
+                    100% 0, 100% calc(100% - 36px),
+                    calc(100% - 36px) 100%, 0 100%);
+        }
+
+        /* Corner bracket system — 4 divs, each corner */
+        .corner {
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            z-index: 4;
+            pointer-events: none;
+        }
+
+        .corner--tl {
+            top: 20px;
+            left: 20px;
+            border-top: 2px solid rgba(255, 255, 255, 0.7);
+            border-left: 2px solid rgba(255, 255, 255, 0.7);
+        }
+
+        /* top-left has the diagonal notch so offset slightly */
+        .corner--tl {
+            transform: translate(34px, 2px);
+        }
+
+        .corner--tr {
+            top: 20px;
+            right: 20px;
+            border-top: 2px solid rgba(255, 255, 255, 0.7);
+            border-right: 2px solid rgba(255, 255, 255, 0.7);
+            transform: translate(-2px, 2px);
+        }
+
+        .corner--bl {
+            bottom: 20px;
+            left: 20px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.7);
+            border-left: 2px solid rgba(255, 255, 255, 0.7);
+            transform: translate(2px, -2px);
+        }
+
+        .corner--br {
+            bottom: 20px;
+            right: 20px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.7);
+            border-right: 2px solid rgba(255, 255, 255, 0.7);
+            /* bottom-right also has the diagonal notch */
+            transform: translate(-36px, -2px);
+        }
+
+        /* Layer 5: UI Overlay */
+        .ui-content {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 5;
+            padding: 55px 65px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            pointer-events: none;
+        }
+
+        /* ── HEADER ── */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-group {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        /* Green waveform pill */
+        .waveform-pill {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: 1px solid rgba(168, 255, 62, 0.35);
+            padding: 7px 14px;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(6px);
+        }
+
+        .waveform-pill svg {
+            animation: wave-shift 2.5s linear infinite;
+        }
+
+        @keyframes wave-shift {
+            from {
+                stroke-dashoffset: 0;
+            }
+
+            to {
+                stroke-dashoffset: -60;
+            }
+        }
+
+        .status-label {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 0.3em;
+            color: var(--green-brand);
+        }
+
+        /* Compass / star icon */
+        .compass-icon {
+            width: 36px;
+            height: 36px;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .compass-icon svg {
+            animation: compass-spin 12s linear infinite;
+        }
+
+        @keyframes compass-spin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ── BOTTOM SECTION ── */
+        .bottom-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            width: 100%;
+        }
+
+        .title-block {
+            max-width: 65%;
+        }
+
+        .desc {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.72rem;
+            font-style: italic;
+            letter-spacing: 0.03em;
+            color: var(--green-brand);
+            margin-bottom: 14px;
+            margin-top: 140px;
+            line-height: 1.4;
+            max-width: 340px;
+        }
+
+        /* Subtle dot row above description */
+        .dot-row {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .dot-row span {
+            display: block;
+            background: rgba(255, 255, 255, 0.25);
+            border-radius: 50%;
+        }
+
+        .main-title {
+            font-family: 'Ceraso', sans-serif;
+            font-size: clamp(4rem, 10.5vw, 11rem);
+            color: var(--green-brand);
+            line-height: 1.0;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            /* Subtle grain texture via text-shadow stack */
+            text-shadow:
+                1px 1px 0px rgba(255, 255, 255, 0.06),
+                0 0 80px rgba(200, 190, 170, 0.08);
+        }
+
+        /* ── ACTION AREA ── */
+        .action-area {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 18px;
+            pointer-events: auto;
+        }
+
+        .btn-start {
+            text-decoration: none;
+            color: var(--white);
+            font-family: 'Space Mono', monospace;
+            font-size: 0.62rem;
+            letter-spacing: 0.38em;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            padding: 18px 38px;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+                border-color 0.35s ease,
+                color 0.35s ease,
+                box-shadow 0.35s ease;
+            text-transform: uppercase;
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+
+        /* Fill layer — slides up from bottom */
+        .btn-start::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 0%;
+            background: var(--green-brand);
+            transition: height 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+            z-index: 0;
+        }
+
+        .btn-start span {
+            position: relative;
+            z-index: 1;
+            transition: color 0.25s ease;
+        }
+
+        .btn-start:hover {
+            transform: translateY(-5px);
+            border-color: var(--green-brand);
+            box-shadow: 0 12px 35px rgba(168, 255, 62, 0.25);
+        }
+
+        .btn-start:hover::before {
+            height: 100%;
+        }
+
+        .btn-start:hover span {
+            color: var(--black);
+        }
+
+        .sys-meta {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.5rem;
+            opacity: 0.4;
+            letter-spacing: 0.22em;
+            color: var(--white);
+            text-align: right;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Video Background -->
+    <div class="bg-container">
+        <img src="./upscalerd.png" alt="background">
+    </div>
+    <!-- Legibility vignette -->
+    <div class="vignette"></div>
+
+    <!-- 3D Canvas -->
+    <div id="canvas-container"></div>
+
+    <!-- Tech Frame -->
+    <div class="tech-frame"></div>
+    <div class="corner corner--tl"></div>
+    <div class="corner corner--tr"></div>
+    <div class="corner corner--bl"></div>
+    <div class="corner corner--br"></div>
+
+    <!-- UI Overlay -->
+    <div class="ui-content">
+
+        <!-- HEADER -->
+        <div class="header">
+            <div class="status-group">
+                <!-- Green waveform pill -->
+                <div class="waveform-pill">
+                    <svg width="48" height="14" viewBox="0 0 100 24" fill="none">
+                        <path d="M0,12 Q12.5,0 25,12 T50,12 T75,12 T100,12" fill="none" stroke="#a8ff3e"
+                            stroke-width="2.5" stroke-dasharray="8 3" stroke-dashoffset="0" />
+                    </svg>
+                    <span class="status-label">ON</span>
+                </div>
+
+                <!-- Compass icon -->
+                <div class="compass-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <line x1="12" y1="2" x2="12" y2="22" stroke="white" stroke-width="1.2" />
+                        <line x1="2" y1="12" x2="22" y2="12" stroke="white" stroke-width="1.2" />
+                        <circle cx="12" cy="12" r="3" stroke="white" stroke-width="1.2" />
+                        <circle cx="12" cy="2" r="1" fill="white" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- BOTTOM SECTION -->
+        <div class="bottom-section">
+            <div class="title-block">
+                <!-- Dot row -->
+                <div class="dot-row">
+                    <span style="width:3px;height:3px;"></span>
+                    <span style="width:4px;height:4px;"></span>
+                    <span style="width:4px;height:4px;"></span>
+                    <span style="width:3px;height:3px;"></span>
+                    <span style="width:5px;height:5px;"></span>
+                    <span style="width:3px;height:3px;"></span>
+                    <span style="width:4px;height:4px;"></span>
+                </div>
+
+                <p class="desc">Our mission is to revolutionize healthcare
+                    through AI-driven
+                    diagnostics and
+                    personalized medicine</p>
+
+                <h1 class="main-title"><br>SYNAPTIC.</h1>
+            </div>
+
+            <div class="action-area">
+                <a href="https://synaptic-pied.vercel.app/dashboard" class="btn-start"><span>GET STARTED //</span></a>
+                <span class="sys-meta">INITIATING 12-9345NCC0188</span>
+            </div>
+        </div>
+
+    </div>
+
+    <audio id="audio" loop>
+        <source src="./soundtrack.mp3" type="audio/mpeg">
+    </audio>
+
+    <script>
+        window.addEventListener('click', function startAudio() {
+            document.getElementById('audio').play();
+            window.removeEventListener('click', startAudio);
+        }, { once: true });
+    </script>
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+    <script type="importmap">
+        { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.module.js" } }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 15;
+
+        const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        scene.add(new THREE.AmbientLight(0xffffff, 0.3));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+        dirLight.position.set(5, 10, 7);
+        scene.add(dirLight);
+
+        const helixGroup = new THREE.Group();
+        scene.add(helixGroup);
+
+        const rodCount = 95;
+        const spacing = 0.28;
+        const capsuleLength = 3.6;
+
+        const capsuleGeo = new THREE.CapsuleGeometry(0.25, capsuleLength, 12, 24);
+        const beadGeo = new THREE.SphereGeometry(0.045, 12, 12);
+
+        const darkColor = new THREE.Color(0x1a1a24);
+        const brightColor = new THREE.Color(0xffffff);
+
+        for (let i = 0; i < rodCount; i++) {
+            const rodGroup = new THREE.Group();
+            const progress = i / (rodCount - 1);
+
+            const capsuleMat = new THREE.MeshPhysicalMaterial({
+                color: darkColor.clone().lerp(brightColor, progress * 0.5),
+                metalness: 0.1,
+                roughness: 0.2 + 0.3 * (1 - progress),
+                transmission: 0.9,
+                thickness: 1.5,
+                ior: 1.2,
+                transparent: true,
+                opacity: 0.6 + 0.3 * progress,
+            });
+
+            const capsuleMesh = new THREE.Mesh(capsuleGeo, capsuleMat);
+            rodGroup.add(capsuleMesh);
+
+            const beadsPerRod = 22;
+            const beadMat = new THREE.MeshStandardMaterial({
+                color: brightColor,
+                emissive: brightColor,
+                emissiveIntensity: progress * 3.5,
+            });
+
+            const beadInstanced = new THREE.InstancedMesh(beadGeo, beadMat, beadsPerRod);
+            const dummy = new THREE.Object3D();
+
+            for (let j = 0; j < beadsPerRod; j++) {
+                const yPos = -(capsuleLength / 2) + capsuleLength * (j / (beadsPerRod - 1));
+                dummy.position.set(0, yPos, 0);
+                dummy.updateMatrix();
+                beadInstanced.setMatrixAt(j, dummy.matrix);
+            }
+            rodGroup.add(beadInstanced);
+
+            rodGroup.position.x = (i - rodCount / 2) * spacing;
+            rodGroup.rotation.x = i * 0.095;
+
+            helixGroup.add(rodGroup);
+        }
+
+        helixGroup.rotation.z = 0.05;
+        helixGroup.position.y = -0.5;
+
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            const t = clock.getElapsedTime();
+            helixGroup.rotation.x = t * 0.15;
+            helixGroup.position.y = -0.5 + Math.sin(t * 0.8) * 0.15;
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+
+</html>
